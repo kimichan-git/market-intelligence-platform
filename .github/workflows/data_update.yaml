@@ -37,4 +37,7 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add data/ reports/
           git commit -m "Auto-update market data [skip ci]" || echo "No changes to commit"
+          # 新增這行：先拉取遠端最新的代碼，避免衝突
+          git pull --rebase origin main
           git push
+
