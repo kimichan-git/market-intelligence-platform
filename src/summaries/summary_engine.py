@@ -12,7 +12,13 @@ class SummaryEngine:
         returns_df = pd.read_parquet(os.path.join(self.processed_data_dir, 'returns.parquet'))
         yield_df = pd.read_parquet(os.path.join(self.processed_data_dir, 'yield_analysis.parquet'))
         
-        last_returns = returns_df.iloc[-1].fillna(0)
+        # --- 新增：檢查數據是否為空 ---
+        if returns_df.empty:
+            print("Warning: returns_df is empty. Using placeholder data.")
+            return self._get_empty_highlights()
+        # ---------------------------
+
+        last_returns = returns_df.iloc[-1]
         
         # 1. 表現最好與最差的資產
         top_performer = last_returns.idxmax()
@@ -46,3 +52,14 @@ class SummaryEngine:
         text += f"美國 10Y-2Y 國債利差目前為 {highlights['yield_spread_10y2y']}。今日變動為 {highlights['yield_spread_change']}。\n"
         
         return text
+    
+# 新增一個輔助方法處理空數據情況
+    def _get_empty_highlights(self):
+        return {
+            "date": datetime.now().strftime('%Y-%m-%d'),
+            "top_performer": {"name": "N/A", "change": "0.00%"},
+            "worst_performer": {"name": "N/A", "change": "0.00%"},
+            "yield_spread_10y2y": "N/A",
+            "yield_spread_change": "0.0000%",
+            "all_returns": {}
+        }
