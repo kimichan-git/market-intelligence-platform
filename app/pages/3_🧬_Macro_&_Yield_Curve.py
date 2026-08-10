@@ -20,9 +20,10 @@ if yield_df is not None:
     
     with tab1:
         st.subheader("美國國債收益率曲線")
-        analyzer = YieldCurveAnalyzer(os.path.join(os.path.dirname(__file__), '../data/processed'))
-        latest_curve = analyzer.get_latest_curve()
-        
+        # 修正這裡：從 ../ 改為 ../../
+        data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/processed'))
+        analyzer = YieldCurveAnalyzer(data_dir)
+
         col1, col2 = st.columns([2, 1])
         
         with col1:

@@ -12,9 +12,13 @@ class DataProcessor:
         """處理市場數據：計算回報率、波動率等"""
         df = pd.read_parquet(os.path.join(self.raw_data_dir, filename))
         
-        # 1. 計算日回報率
-        returns = df.pct_change()
-        
+        # --- 新增：數據清洗 ---
+        df = df.ffill()  # 向前填充缺失值
+        df = df.dropna(how='all') # 刪除全空行
+        # --------------------
+
+        returns = df.pct_change().dropna()
+
         # 2. 計算滾動波動率 (20日)
         volatility = returns.rolling(window=20).std() * np.sqrt(252)
         
