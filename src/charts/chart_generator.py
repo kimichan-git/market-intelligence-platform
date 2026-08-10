@@ -35,13 +35,34 @@ class ChartGenerator:
     @staticmethod
     def plot_correlation_heatmap(returns_df):
         """繪製資產相關性熱圖"""
-        corr = returns_df.corr()
+        # 只保留有足夠有效資料的資產，去掉全是 NaN 的欄位
+        clean = returns_df.dropna(axis=1, how='all')
+        
+        # 再去掉全是 NaN 的列
+        clean = clean.dropna(how='all')
+        
+        # 計算相關性（自動忽略 NaN）
+        corr = clean.corr()
+        
+        # 如果還是空的，回傳提示圖
+        if corr.empty or corr.isna().all().all():
+            fig = go.Figure()
+            fig.update_layout(title="無法計算相關性（資料不足）", template="plotly_white")
+            return fig
+        
         fig = px.imshow(
             corr, 
-            text_auto=True, 
+            text_auto='.2f', 
             aspect="auto", 
-            title="資產滾動相關性熱圖",
-            color_continuous_scale='RdBu_r'
+            title="資產相關性熱圖",
+            color_continuous_scale='RdBu_r',
+            zmin=-1, 
+            zmax=1
+        )
+        fig.update_layout(
+            xaxis_title="",
+            yaxis_title="",
+            height=500
         )
         return fig
 
