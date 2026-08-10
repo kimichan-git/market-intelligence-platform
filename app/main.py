@@ -1,26 +1,16 @@
 import sys
+import os
 from pathlib import Path
 
-# Add the repository root and inner root to Python's search path
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-INNER_DIR = Path(__file__).resolve().parent.parent
-sys.path.extend([str(ROOT_DIR), str(INNER_DIR)])
-
-# Existing imports follow below:
-import streamlit as st
-import pandas as pd
-from utils import load_config, load_processed_data, load_raw_data, get_ticker_name
-from src.analytics.yield_curve_analyzer import YieldCurveAnalyzer
-
-import streamlit as st
-import pandas as pd
-from utils import load_config, load_processed_data, load_raw_data, get_ticker_name
-from src.analytics.yield_curve_analyzer import YieldCurveAnalyzer
-import sys
-import os
-
-# 確保可以導入 src
+# Add the repository root and app root to Python's search path
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import streamlit as st
+import pandas as pd
+from utils import load_config, load_processed_data, load_raw_data, get_ticker_name
+from src.analytics.yield_curve_analyzer import YieldCurveAnalyzer
 
 st.set_page_config(page_title="市場情報平台", layout="wide")
 
@@ -53,7 +43,6 @@ if market_df is not None and returns_df is not None:
     st.subheader("🚀 核心市場指標")
     cols = st.columns(4)
     
-    # 選取幾個代表性資產
     major_assets = ['^GSPC', '^IXIC', 'GC=F', 'EURUSD=X']
     asset_labels = {
         '^GSPC': "S&P 500",
@@ -64,8 +53,18 @@ if market_df is not None and returns_df is not None:
     
     for i, ticker in enumerate(major_assets):
         if ticker in market_df.columns:
-            last_price = market_df[ticker].iloc[-1]
-            daily_change = returns_df[ticker].iloc[-1] * 100
+            # 取最後一個非 NaN 的價格
+            series = market_df[ticker].dropna()
+            if series.empty:
+                continue
+            last_price = series.iloc[-1]
+            
+            # 取最後一個非 NaN 的回報
+            if returns_df is not None and ticker in returns_df.columns:
+                ret_series = returns_df[ticker].dropna()
+                daily_change = ret_series.iloc[-1] * 100 if not ret_series.empty else 0.0
+            else:
+                daily_change = 0.0
             
             cols[i % 4].metric(
                 label=asset_labels[ticker],
@@ -81,9 +80,12 @@ if market_df is not None and returns_df is not None:
     
     with m_col1:
         st.info("💡 **市場情緒**")
-        vix_val = market_df.get('^VIX') # 假設有 VIX
-        if vix_val is not None:
-            st.write(f"VIX 指數: {vix_val.iloc[-1]:.2f}")
+        if '^VIX' in market_df.columns:
+            vix_series = market_df['^VIX'].dropna()
+            if not vix_series.empty:
+                st.write(f"VIX 指數: {vix_series.iloc[-1]:.2f}")
+            else:
+                st.write("目前市場波動率處於正常區間。")
         else:
             st.write("目前市場波動率處於正常區間。")
             
@@ -92,8 +94,10 @@ if market_df is not None and returns_df is not None:
         analyzer = YieldCurveAnalyzer(os.path.join(os.path.dirname(__file__), '../data/processed'))
         shape = analyzer.analyze_shape()
         st.write(f"當前形狀: **{shape}**")
-        if '10Y-2Y' in yield_df.columns:
-            st.write(f"10Y-2Y 利差: {yield_df['10Y-2Y'].iloc[-1]:.2f}%")
+        if yield_df is not None and '10Y-2Y' in yield_df.columns:
+            spread_series = yield_df['10Y-2Y'].dropna()
+            if not spread_series.empty:
+                st.write(f"10Y-2Y 利差: {spread_series.iloc[-1]:.2f}%")
 
 else:
     st.warning("請先執行數據採集腳本以生成數據。")

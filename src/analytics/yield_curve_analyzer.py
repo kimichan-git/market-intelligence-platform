@@ -8,24 +8,25 @@ class YieldCurveAnalyzer:
     def get_latest_curve(self):
         """獲取最新的收益率曲線數據點"""
         df = pd.read_parquet(self.data_path)
-        latest = df.iloc[-1]
+        # 取最後一筆有效數據（跳過可能的 NaN 行）
+        latest = df.dropna(how='all').iloc[-1]
         
-        # 提取不同期限的收益率
         tenors = {
             '2Y': latest.get('DGS2'),
             '5Y': latest.get('DGS5'),
             '10Y': latest.get('DGS10'),
             '30Y': latest.get('DGS30')
         }
-        return tenors
+        # 過濾掉 None/NaN
+        return {k: v for k, v in tenors.items() if pd.notna(v)}
 
     def analyze_shape(self):
         """分析曲線形狀"""
         df = pd.read_parquet(self.data_path)
-        latest = df.iloc[-1]
+        latest = df.dropna(how='all').iloc[-1]
         spread_10y2y = latest.get('10Y-2Y')
         
-        if spread_10y2y is None:
+        if spread_10y2y is None or pd.isna(spread_10y2y):
             return "Unknown"
             
         if spread_10y2y < 0:

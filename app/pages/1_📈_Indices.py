@@ -24,27 +24,40 @@ if market_df is not None:
     
     # 過濾數據
     filtered_df = market_df.loc[str(date_range[0]):str(date_range[1])]
-    
+    # 對選定 ticker 去除 NaN，確保最新交易日數據正確顯示
+    filtered_df = filtered_df[[selected_ticker]].dropna()
+
     # 顯示圖表
     chart_gen = ChartGenerator()
     name = next(i['name'] for i in config['indices'] if i['ticker'] == selected_ticker)
-    
+
     col1, col2 = st.columns([3, 1])
-    
+
     with col1:
-        fig = chart_gen.plot_price_history(filtered_df, selected_ticker, name)
-        st.plotly_chart(fig, use_container_width=True)
+        if not filtered_df.empty:
+            fig = chart_gen.plot_price_history(filtered_df, selected_ticker, name)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("選定區間內無有效價格數據。")
         
     with col2:
         st.subheader("統計指標")
-        last_price = filtered_df[selected_ticker].iloc[-1]
-        period_return = (filtered_df[selected_ticker].iloc[-1] / filtered_df[selected_ticker].iloc[0] - 1) * 100
+        price_series = filtered_df[selected_ticker].dropna()
+        if not price_series.empty:
+            last_price = price_series.iloc[-1]
+            first_price = price_series.iloc[0]
+            period_return = (last_price / first_price - 1) * 100 if first_price != 0 else 0.0
+            
+            st.metric("最新價格", f"{last_price:,.2f}")
+            st.metric("區間回報", f"{period_return:.2f}%")
+        else:
+            st.metric("最新價格", "N/A")
+            st.metric("區間回報", "N/A")
         
-        st.metric("最新價格", f"{last_price:,.2f}")
-        st.metric("區間回報", f"{period_return:.2f}%")
-        
-        if returns_df is not None:
-            vol = returns_df[selected_ticker].std() * (252**0.5) * 100
-            st.metric("年化波動率", f"{vol:.2f}%")
-else:
-    st.error("找不到數據。")
+        if returns_df is not None and selected_ticker in returns_df.columns:
+            ret_series = returns_df[selected_ticker].dropna()
+            if not ret_series.empty:
+                vol = ret_series.std() * (252**0.5) * 100
+                st.metric("年化波動率", f"{vol:.2f}%")
+            else:
+                st.metric("年化波動率", "N/A")

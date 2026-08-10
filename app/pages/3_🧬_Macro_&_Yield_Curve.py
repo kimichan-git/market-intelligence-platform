@@ -20,26 +20,32 @@ if yield_df is not None:
     
     with tab1:
         st.subheader("美國國債收益率曲線")
-        # 修正這裡：從 ../ 改為 ../../
         data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/processed'))
         analyzer = YieldCurveAnalyzer(data_dir)
+        chart_gen = ChartGenerator()
 
         col1, col2 = st.columns([2, 1])
         
         with col1:
-            chart_gen = ChartGenerator()
-            fig = chart_gen.plot_yield_curve(latest_curve)
-            st.plotly_chart(fig, use_container_width=True)
+            latest_curve = analyzer.get_latest_curve()
+            if latest_curve:
+                fig = chart_gen.plot_yield_curve(latest_curve)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("無法取得最新收益率曲線數據。")
             
         with col2:
             st.metric("當前曲線形狀", analyzer.analyze_shape())
             if '10Y-2Y' in yield_df.columns:
-                st.metric("10Y-2Y 利差", f"{yield_df['10Y-2Y'].iloc[-1]:.2f}%")
+                spread = yield_df['10Y-2Y'].dropna()
+                if not spread.empty:
+                    st.metric("10Y-2Y 利差", f"{spread.iloc[-1]:.2f}%")
         
         st.markdown("---")
         st.subheader("歷史利差監測")
-        fig_spread = chart_gen.plot_spread_history(yield_df, '10Y-2Y')
-        st.plotly_chart(fig_spread, use_container_width=True)
+        if '10Y-2Y' in yield_df.columns:
+            fig_spread = chart_gen.plot_spread_history(yield_df, '10Y-2Y')
+            st.plotly_chart(fig_spread, use_container_width=True)
 
     with tab2:
         if returns_df is not None:

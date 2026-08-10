@@ -12,20 +12,26 @@ class DataProcessor:
         """處理市場數據：計算回報率、波動率等"""
         df = pd.read_parquet(os.path.join(self.raw_data_dir, filename))
         
-        # --- 新增：數據清洗 ---
-        df = df.ffill()  # 向前填充缺失值
-        df = df.dropna(how='all') # 刪除全空行
+        # --- 數據清洗 ---
+        # 刪除全為 NaN 的列（例如無效 ticker）
+        df = df.dropna(axis=1, how='all')
+        # 刪除全空的行
+        df = df.dropna(how='all')
         # --------------------
 
-        returns = df.pct_change().dropna()
+        # 計算日回報（保留 NaN，不填充假日，避免虛假 0 回報）
+        returns = df.pct_change()
+        # 只丟棄全部為 NaN 的行
+        returns = returns.dropna(how='all')
 
-        # 2. 計算滾動波動率 (20日)
-        volatility = returns.rolling(window=20).std() * np.sqrt(252)
+        # 2. 計算滾動波動率 (20日) — 自動忽略 NaN
+        volatility = returns.rolling(window=20, min_periods=5).std() * np.sqrt(252)
         
         # 3. 計算累計回報
-        cum_returns = (1 + returns).cumprod()
+        filled_returns = returns.fillna(0)
+        cum_returns = (1 + filled_returns).cumprod()
         
-        # 4. 計算最大回撤 (簡單實現)
+        # 4. 計算最大回撤
         rolling_max = cum_returns.rolling(window=252, min_periods=1).max()
         drawdown = cum_returns / rolling_max - 1
         
